@@ -1,9 +1,8 @@
 import { NextFunction, Request, Response, Router } from 'express';
 
 import Controller from '@/utils/interfaces/controller.interface';
-import { HttpException } from '@/utils/exceptions/http.exception';
 import PostService from '@/resources/post/post.service';
-import ResponseHandler from '@/utils/response/http.response';
+import ResponseHandler from '@/utils/http/http.response';
 
 class PostController implements Controller {
     public path = '/posts';

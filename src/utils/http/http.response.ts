@@ -6,7 +6,7 @@ import {
     HTTP403Error,
     HTTP404Error,
     HTTP409Error,
-} from '@/utils/exceptions/http.exception';
+} from '@/utils/http/http.exception';
 
 class ResponseHandler implements HttpResponse {
     status = 1;
@@ -15,6 +15,7 @@ class ResponseHandler implements HttpResponse {
     message = 'Success';
     description?: string;
     payload?: any;
+    errors?: object;
 
     constructor(private req: Request, private res: Response) {}
 
@@ -25,11 +26,17 @@ class ResponseHandler implements HttpResponse {
         this.error = undefined;
     }
 
-    public setErrorData(error: string, message: string, description?: string) {
+    public setErrorData(
+        error: string,
+        message: string,
+        description?: string,
+        errors?: object
+    ) {
         this.message = message;
         this.description = description;
         this.error = error;
         this.payload = undefined;
+        this.errors = errors;
     }
 
     onCreate(message: string, payload?: any, description?: string) {
@@ -50,11 +57,12 @@ class ResponseHandler implements HttpResponse {
         statusCode: number,
         error: string,
         message: string,
-        description?: string
+        description?: string,
+        errors?: object
     ) {
         this.statusCode = statusCode || 400;
         this.status = 0;
-        this.setErrorData(error, message, description);
+        this.setErrorData(error, message, description, errors);
         return this;
     }
 
@@ -73,11 +81,13 @@ class ResponseHandler implements HttpResponse {
             message: this.message,
             description: this.description,
             payload: this.payload,
+            errors: this.errors,
         };
         this.res.status(this.statusCode).json(response);
     }
 
     sendError(e: any) {
+        console.log(e);
         if (e instanceof HTTP400Error) {
             return new HTTP400Error(e.message, e.description);
         }
@@ -94,8 +104,24 @@ class ResponseHandler implements HttpResponse {
             return new HTTP409Error(e.message, e.description);
         }
         if (e.name === 'ValidationError') {
-            return new HTTP400Error(e.message, 'Schema validation error.');
+            let errors: { [key: string]: string } = {};
+
+            Object.keys(e.errors).forEach((key) => {
+                errors[key] = e.errors[key].message;
+            });
+
+            return new HTTP400Error('Schema validation error', '', errors);
         }
+
+        if (e.code === 11000) {
+            let errors: { [key: string]: string } = {};
+            Object.keys(e.keyValue).forEach((key) => {
+                errors[key] = `${key} is already in the taken`;
+            });
+
+            return new HTTP400Error('Duplicate key error', '', errors);
+        }
+
         if (e.name === 'MongoError') {
             return new HTTP400Error(e.message, 'Schema validation error.');
         }

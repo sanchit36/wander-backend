@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { HttpException } from '@/utils/exceptions/http.exception';
-import ResponseHandler from '@/utils/response/http.response';
+import { HttpException } from '@/utils/http/http.exception';
+import ResponseHandler from '@/utils/http/http.response';
 
 function errorMiddleware(
     error: Error,
@@ -9,7 +9,6 @@ function errorMiddleware(
     _next: NextFunction
 ): void {
     const responseHandler = new ResponseHandler(req, res);
-    console.log(error);
 
     if (error instanceof HttpException) {
         responseHandler
@@ -17,7 +16,8 @@ function errorMiddleware(
                 error.statusCode,
                 error.name,
                 error.message,
-                error.description
+                error.description,
+                error.errors
             )
             .send();
     } else {

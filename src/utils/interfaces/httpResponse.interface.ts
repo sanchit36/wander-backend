@@ -5,4 +5,5 @@ export interface HttpResponse {
     payload?: any;
     error?: string;
     description?: string;
+    errors?: object;
 }

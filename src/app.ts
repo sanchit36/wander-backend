@@ -6,6 +6,7 @@ import helmet from 'helmet';
 
 import Controller from '@/utils/interfaces/controller.interface';
 import errorMiddleware from './middleware/error.middleware';
+import notFoundMiddleware from './middleware/404.middleware';
 
 class App {
     private app: Application;
@@ -48,6 +49,7 @@ class App {
     }
 
     private initializeErrorHandling() {
+        this.app.use(notFoundMiddleware);
         this.app.use(errorMiddleware);
     }
 

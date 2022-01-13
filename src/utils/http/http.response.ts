@@ -7,6 +7,7 @@ import {
     HTTP404Error,
     HTTP409Error,
 } from '@/utils/http/http.exception';
+import { JsonWebTokenError } from 'jsonwebtoken';
 
 class ResponseHandler implements HttpResponse {
     status = 1;
@@ -120,6 +121,10 @@ class ResponseHandler implements HttpResponse {
             });
 
             return new HTTP400Error('Duplicate key error', '', errors);
+        }
+
+        if (e instanceof JsonWebTokenError) {
+            return new HTTP403Error('Forbidden');
         }
 
         if (e.name === 'MongoError') {

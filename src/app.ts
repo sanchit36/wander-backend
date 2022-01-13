@@ -7,6 +7,7 @@ import helmet from 'helmet';
 import Controller from '@/utils/interfaces/controller.interface';
 import errorMiddleware from './middleware/error.middleware';
 import notFoundMiddleware from './middleware/404.middleware';
+import deserializeUser from './middleware/deserializeUser.middleware';
 
 class App {
     private app: Application;
@@ -40,6 +41,7 @@ class App {
         this.app.use(morgan('dev'));
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
+        this.app.use(deserializeUser);
     }
 
     private initializeControllers(controllers: Controller[]) {

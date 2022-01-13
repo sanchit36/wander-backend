@@ -31,9 +31,19 @@ export const loginUserSchema = object({
     }),
 });
 
+export const verifyUserSchema = object({
+    params: object({
+        token: string({
+            required_error: 'Token is required',
+        }),
+    }),
+});
+
 export type CreateUserInput = Omit<
     TypeOf<typeof createUserSchema>,
     'body.passwordConfirmation'
 >;
 
 export type LoginUserInput = TypeOf<typeof loginUserSchema>;
+
+export type VerifyUserInput = TypeOf<typeof verifyUserSchema>;

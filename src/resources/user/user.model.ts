@@ -1,5 +1,6 @@
 import { Schema, model } from 'mongoose';
 import validator from 'validator';
+import bcrypt from 'bcrypt';
 
 import User from '@/resources/user/user.interface';
 
@@ -80,6 +81,24 @@ UserSchema.methods.toJSON = function () {
     delete userObj.__v;
 
     return userObj;
+};
+
+UserSchema.pre('save', async function (next) {
+    const user = this as User;
+    if (!user.isModified('password')) {
+        next();
+    }
+    const salt = await bcrypt.genSalt();
+    const hash = await bcrypt.hash(user.password, salt);
+    user.password = hash;
+    return next();
+});
+
+UserSchema.methods.comparePassword = async function (
+    candidatePassword: string
+): Promise<boolean> {
+    const user = this as User;
+    return bcrypt.compare(candidatePassword, user.password).catch((e) => false);
 };
 
 export default model<User>('User', UserSchema);

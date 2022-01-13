@@ -6,6 +6,8 @@ import ResponseHandler from '@/utils/http/http.response';
 import {
     CreateUserInput,
     createUserSchema,
+    LoginUserInput,
+    loginUserSchema,
 } from '@/resources/user/user.schema';
 import validate from '@/middleware/validateResource.middleware';
 
@@ -24,6 +26,11 @@ class UserController implements Controller {
             validate(createUserSchema),
             this.createUser
         );
+        this.router.post(
+            `${this.path}/login`,
+            validate(loginUserSchema),
+            this.loginUser
+        );
     }
 
     private createUser = async (
@@ -36,6 +43,21 @@ class UserController implements Controller {
             const body = req.body;
             const user = await this.UserService.create(body);
             responseHandler.onCreate('User created successfully', user).send();
+        } catch (error) {
+            next(responseHandler.sendError(error));
+        }
+    };
+
+    private loginUser = async (
+        req: Request<{}, {}, LoginUserInput['body']>,
+        res: Response,
+        next: NextFunction
+    ) => {
+        const responseHandler = new ResponseHandler(req, res);
+        try {
+            const body = req.body;
+            const user = await this.UserService.login(body);
+            responseHandler.onFetch('User logged in successfully', user).send();
         } catch (error) {
             next(responseHandler.sendError(error));
         }

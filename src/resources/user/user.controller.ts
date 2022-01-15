@@ -25,6 +25,7 @@ import {
     setRefreshTokenCookie,
 } from '@/utils/secureTokens.utils';
 import TokenService from '@/resources/token/token.service';
+import requireUser from '@/middleware/requireUser.middleware';
 
 class UserController implements Controller {
     public path = '/users';
@@ -47,6 +48,7 @@ class UserController implements Controller {
             validate(loginUserSchema),
             this.loginUser
         );
+        this.router.post(`${this.path}/logout`, requireUser, this.logoutUser);
         this.router.post(
             `${this.path}/verify-email`,
             validate(emailBody),
@@ -116,6 +118,15 @@ class UserController implements Controller {
         } catch (error) {
             next(responseHandler.sendError(error));
         }
+    };
+
+    private logoutUser = async (
+        req: Request,
+        res: Response,
+        next: NextFunction
+    ) => {
+        res.clearCookie('jid');
+        res.send('logged out successfully');
     };
 
     private getVerificationEmail = async (

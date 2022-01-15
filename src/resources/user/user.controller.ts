@@ -15,6 +15,13 @@ import validate from '@/middleware/validateResource.middleware';
 import { signJwt, verifyJwt } from '@/utils/jwt.utils';
 import { HTTP400Error } from '@/utils/http/http.exception';
 import requireUser from '@/middleware/requireUser.middleware';
+import Mailer from '@/utils/Mailer.utils';
+import {
+    generateAccessToken,
+    generateRefreshToken,
+    generateVerificationToken,
+    setRefreshTokenCookie,
+} from '@/utils/secureTokens.utils';
 
 class UserController implements Controller {
     public path = '/users';
@@ -37,16 +44,14 @@ class UserController implements Controller {
             this.loginUser
         );
         this.router.post(
-            `${this.path}/get-verify-token`,
-
+            `${this.path}/verification-email`,
             this.getVerificationToken
         );
-        this.router.patch(
-            `${this.path}/verify-user/:token`,
+        this.router.get(
+            `${this.path}/verify-email/:token`,
             validate(verifyUserSchema),
             this.verifyUserEmail
         );
-
         this.router.get(
             `${this.path}/private`,
             requireUser,
@@ -54,6 +59,7 @@ class UserController implements Controller {
                 res.sendStatus(200);
             }
         );
+        this.router.get(`${this.path}/refresh-token`, this.refreshToken);
     }
 
     private createUser = async (
@@ -63,7 +69,16 @@ class UserController implements Controller {
     ): Promise<Response | void> => {
         const responseHandler = new ResponseHandler(req, res);
         try {
-            await this.UserService.create(req.body);
+            const user = await this.UserService.create(req.body);
+            const verifyToken = await generateVerificationToken(user);
+            const mailer = new Mailer();
+
+            mailer.sendVerificationEmail(
+                user.email,
+                user.username,
+                verifyToken
+            );
+
             responseHandler
                 .onCreate(
                     'Account created successfully, Verify your email to login'
@@ -83,33 +98,14 @@ class UserController implements Controller {
         try {
             const user = await this.UserService.login(req.body);
 
-            const accessToken = await signJwt(
-                {
-                    userId: user._id,
-                    email: user.email,
-                },
-                process.env.ACCESS_TOKEN_SECRET!,
-                {
-                    expiresIn: process.env.ACCESS_TOKEN_TTL,
-                }
-            );
-            const refreshToken = await signJwt(
-                {
-                    userId: user._id,
-                    email: user.email,
-                    verifyToken: user.verifyToken,
-                },
-                process.env.ACCESS_TOKEN_SECRET!,
-                {
-                    expiresIn: process.env.ACCESS_TOKEN_TTL,
-                }
-            );
+            const accessToken = await generateAccessToken(user);
+            const refreshToken = await generateRefreshToken(user);
+            setRefreshTokenCookie(res, refreshToken);
 
             responseHandler
                 .onFetch('User logged in successfully', {
                     user,
                     accessToken,
-                    refreshToken,
                 })
                 .send();
         } catch (error) {
@@ -131,18 +127,21 @@ class UserController implements Controller {
                 throw new HTTP400Error('Already verified');
             }
 
-            const verifyToken = await signJwt(
-                {
-                    userId: user._id,
-                    email: user.email,
-                },
-                process.env.VERIFY_TOKEN_SECRET!,
-                {
-                    expiresIn: process.env.VERIFY_TOKEN_TTL,
-                }
+            const verifyToken = await generateVerificationToken(user);
+
+            const mailer = new Mailer();
+
+            mailer.sendVerificationEmail(
+                user.email,
+                user.username,
+                verifyToken
             );
 
-            responseHandler.onFetch('Verify Token', verifyToken).send();
+            responseHandler
+                .onFetch('Verify Token', {
+                    message: 'email as been sent to your email address',
+                })
+                .send();
         } catch (error) {
             next(responseHandler.sendError(error));
         }
@@ -169,6 +168,23 @@ class UserController implements Controller {
             user.isVerified = true;
             user.save();
             responseHandler.onFetch('User Verified Successfully').send();
+        } catch (error) {
+            next(responseHandler.sendError(error));
+        }
+    };
+
+    private refreshToken = async (
+        req: Request,
+        res: Response,
+        next: NextFunction
+    ) => {
+        const responseHandler = new ResponseHandler(req, res);
+        try {
+            const token: string | undefined = req.cookies.jid;
+            const { accessToken, refreshToken } =
+                await this.UserService.refreshToken(token);
+            setRefreshTokenCookie(res, refreshToken);
+            responseHandler.onFetch('access Token', { accessToken }).send();
         } catch (error) {
             next(responseHandler.sendError(error));
         }

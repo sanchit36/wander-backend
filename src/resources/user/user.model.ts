@@ -69,7 +69,7 @@ const UserSchema = new Schema(
         },
         following: [{ type: Schema.Types.ObjectId, ref: 'User' }],
         followers: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-        verifyToken: {
+        tokenVersion: {
             type: Number,
             default: 0,
         },

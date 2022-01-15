@@ -2,6 +2,11 @@ import UserModel from '@/resources/user/user.model';
 import User from '@/resources/user/user.interface';
 import { CreateUserInput, LoginUserInput } from './user.schema';
 import { HTTP403Error, HTTP404Error } from '@/utils/http/http.exception';
+import { verifyJwt } from '@/utils/jwt.utils';
+import {
+    generateAccessToken,
+    generateRefreshToken,
+} from '@/utils/secureTokens.utils';
 
 class UserService {
     private User = UserModel;
@@ -53,6 +58,50 @@ class UserService {
         } catch (error) {
             throw error;
         }
+    }
+
+    public async refreshToken(refreshToken?: string): Promise<{
+        accessToken: string;
+        refreshToken: string;
+    }> {
+        try {
+            if (!refreshToken) {
+                throw new Error();
+            }
+
+            const { valid, decoded, expired } = await verifyJwt(
+                refreshToken,
+                process.env.REFRESH_TOKEN_SECRET!
+            );
+
+            if (!valid || expired || !decoded) {
+                throw new Error();
+            }
+
+            const user = await this.findUserByEmail(decoded?.email);
+
+            if (user.tokenVersion !== decoded.tokenVersion) {
+                throw new Error();
+            }
+
+            const accessToken = await generateAccessToken(user);
+            const newRefreshToken = await generateRefreshToken(user);
+
+            return {
+                accessToken,
+                refreshToken: newRefreshToken,
+            };
+        } catch (error) {
+            return {
+                accessToken: '',
+                refreshToken: '',
+            };
+        }
+    }
+
+    public async revokeAllSessions(user: User) {
+        user.tokenVersion += 1;
+        user.save();
     }
 }
 

@@ -4,7 +4,7 @@ export default interface User extends Document {
     username: string;
     email: string;
     password: string;
-    verifyToken: number;
+    tokenVersion: number;
     comparePassword(candidatePassword: string): Promise<boolean>;
     avatar?: string;
     bio?: string;

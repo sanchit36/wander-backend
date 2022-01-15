@@ -23,7 +23,7 @@ export const verifyJwt = async (token: string, secretKey: string) => {
     try {
         const decoded = jwt.verify(token, secretKey) as PayloadJwt;
         return {
-            valid: false,
+            valid: true,
             expired: false,
             decoded,
         };

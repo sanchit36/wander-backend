@@ -3,11 +3,13 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import morgan from 'morgan';
 import helmet from 'helmet';
+import cookieParser from 'cookie-parser';
 
 import Controller from '@/utils/interfaces/controller.interface';
 import errorMiddleware from './middleware/error.middleware';
 import notFoundMiddleware from './middleware/404.middleware';
 import deserializeUser from './middleware/deserializeUser.middleware';
+import requestMethodsMiddleware from './middleware/requestMethods.middleware';
 
 class App {
     private app: Application;
@@ -41,6 +43,8 @@ class App {
         this.app.use(morgan('dev'));
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
+        this.app.use(cookieParser());
+        this.app.use(requestMethodsMiddleware);
         this.app.use(deserializeUser);
     }
 

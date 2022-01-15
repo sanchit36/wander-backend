@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response, Router } from 'express';
+import crypto from 'crypto';
 
 import Controller from '@/utils/interfaces/controller.interface';
 import UserService from '@/resources/user/user.service';
@@ -6,27 +7,30 @@ import ResponseHandler from '@/utils/http/http.response';
 import {
     CreateUserInput,
     createUserSchema,
+    emailBody,
+    EmailBody,
     LoginUserInput,
     loginUserSchema,
+    resetPassword,
+    ResetPasswordInput,
     VerifyUserInput,
     verifyUserSchema,
 } from '@/resources/user/user.schema';
 import validate from '@/middleware/validateResource.middleware';
-import { signJwt, verifyJwt } from '@/utils/jwt.utils';
-import { HTTP400Error } from '@/utils/http/http.exception';
-import requireUser from '@/middleware/requireUser.middleware';
+import { HTTP400Error, HTTP401Error } from '@/utils/http/http.exception';
 import Mailer from '@/utils/Mailer.utils';
 import {
     generateAccessToken,
     generateRefreshToken,
-    generateVerificationToken,
     setRefreshTokenCookie,
 } from '@/utils/secureTokens.utils';
+import TokenService from '@/resources/token/token.service';
 
 class UserController implements Controller {
     public path = '/users';
     public router = Router();
-    private UserService = new UserService();
+    private userService = new UserService();
+    private tokenService = new TokenService();
 
     constructor() {
         this.initializeRoutes();
@@ -44,20 +48,24 @@ class UserController implements Controller {
             this.loginUser
         );
         this.router.post(
-            `${this.path}/verification-email`,
-            this.getVerificationToken
+            `${this.path}/verify-email`,
+            validate(emailBody),
+            this.getVerificationEmail
         );
         this.router.patch(
-            `${this.path}/verify-email/:token`,
+            `${this.path}/verify-email/:userId/:token`,
             validate(verifyUserSchema),
             this.verifyUserEmail
         );
-        this.router.get(
-            `${this.path}/private`,
-            requireUser,
-            (req: Request, res: Response) => {
-                res.sendStatus(200);
-            }
+        this.router.post(
+            `${this.path}/reset-password`,
+            validate(emailBody),
+            this.resetPasswordEmail
+        );
+        this.router.patch(
+            `${this.path}/reset-password/:userId/:token`,
+            validate(resetPassword),
+            this.resetPassword
         );
         this.router.get(`${this.path}/refresh-token`, this.refreshToken);
     }
@@ -69,16 +77,13 @@ class UserController implements Controller {
     ): Promise<Response | void> => {
         const responseHandler = new ResponseHandler(req, res);
         try {
-            const user = await this.UserService.create(req.body);
-            const verifyToken = await generateVerificationToken(user);
+            const user = await this.userService.create(req.body);
+            const token = await this.tokenService.create({
+                userId: user._id,
+                token: crypto.randomBytes(32).toString('hex'),
+            });
             const mailer = new Mailer();
-
-            mailer.sendVerificationEmail(
-                user.email,
-                user.username,
-                verifyToken
-            );
-
+            mailer.sendVerificationEmail(user, token.token);
             responseHandler
                 .onCreate(
                     'Account created successfully, Verify your email to login'
@@ -96,7 +101,7 @@ class UserController implements Controller {
     ) => {
         const responseHandler = new ResponseHandler(req, res);
         try {
-            const user = await this.UserService.login(req.body);
+            const user = await this.userService.login(req.body);
 
             const accessToken = await generateAccessToken(user);
             const refreshToken = await generateRefreshToken(user);
@@ -113,30 +118,27 @@ class UserController implements Controller {
         }
     };
 
-    private getVerificationToken = async (
-        req: Request,
+    private getVerificationEmail = async (
+        req: Request<{}, {}, EmailBody['body']>,
         res: Response,
         next: NextFunction
     ) => {
         const responseHandler = new ResponseHandler(req, res);
         try {
             const { email } = req.body;
-            const user = await this.UserService.findUserByEmail(email);
-
+            const user = await this.userService.findUserByEmail(email);
             if (user.isVerified) {
                 throw new HTTP400Error('Already verified');
             }
-
-            const verifyToken = await generateVerificationToken(user);
-
+            let token = await this.tokenService.findToken({ userId: user._id });
+            if (!token) {
+                token = await this.tokenService.create({
+                    userId: user._id,
+                    token: crypto.randomBytes(32).toString('hex'),
+                });
+            }
             const mailer = new Mailer();
-
-            mailer.sendVerificationEmail(
-                user.email,
-                user.username,
-                verifyToken
-            );
-
+            mailer.sendVerificationEmail(user, token.token);
             responseHandler
                 .onFetch('Verify Token', {
                     message: 'email as been sent to your email address',
@@ -154,20 +156,71 @@ class UserController implements Controller {
     ) => {
         const responseHandler = new ResponseHandler(req, res);
         try {
-            const { token } = req.params;
-            const { decoded } = await verifyJwt(
-                token,
-                process.env.VERIFY_TOKEN_SECRET!
-            );
-
-            if (!decoded) {
-                throw new HTTP400Error('Invalid token');
+            const { userId, token } = req.params;
+            const t = await this.tokenService.findToken({ userId, token });
+            if (!t) {
+                throw new HTTP401Error('Invalid or expired token');
             }
-
-            const user = await this.UserService.findUserByEmail(decoded.email);
+            const user = await this.userService.findUserById(t.userId);
             user.isVerified = true;
             user.save();
+            t.delete();
             responseHandler.onFetch('User Verified Successfully').send();
+        } catch (error) {
+            next(responseHandler.sendError(error));
+        }
+    };
+
+    private resetPasswordEmail = async (
+        req: Request<{}, {}, EmailBody['body']>,
+        res: Response,
+        next: NextFunction
+    ) => {
+        const responseHandler = new ResponseHandler(req, res);
+        try {
+            const { email } = req.body;
+            const user = await this.userService.findUserByEmail(email);
+            let token = await this.tokenService.findToken({ userId: user._id });
+            if (!token) {
+                token = await this.tokenService.create({
+                    userId: user._id,
+                    token: crypto.randomBytes(32).toString('hex'),
+                });
+            }
+            const mailer = new Mailer();
+            mailer.sendResetPasswordEmail(user, token.token);
+            responseHandler
+                .onFetch('reset password', {
+                    message: 'email as been sent to your email address',
+                })
+                .send();
+        } catch (error) {
+            next(responseHandler.sendError(error));
+        }
+    };
+
+    private resetPassword = async (
+        req: Request<
+            ResetPasswordInput['params'],
+            {},
+            ResetPasswordInput['body']
+        >,
+        res: Response,
+        next: NextFunction
+    ) => {
+        const responseHandler = new ResponseHandler(req, res);
+        try {
+            const { userId, token } = req.params;
+            const { password } = req.body;
+            const t = await this.tokenService.findToken({ userId, token });
+            if (!t) {
+                throw new HTTP401Error('Invalid or expired token');
+            }
+            const user = await this.userService.findUserById(t.userId);
+            user.password = password;
+            user.save();
+            t.delete();
+            responseHandler.onFetch('password changed successfully').send();
         } catch (error) {
             next(responseHandler.sendError(error));
         }
@@ -182,7 +235,7 @@ class UserController implements Controller {
         try {
             const token: string | undefined = req.cookies.jid;
             const { user, accessToken, refreshToken } =
-                await this.UserService.refreshToken(token);
+                await this.userService.refreshToken(token);
             setRefreshTokenCookie(res, refreshToken);
             responseHandler
                 .onFetch('access Token', { user, accessToken })

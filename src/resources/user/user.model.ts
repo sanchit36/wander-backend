@@ -36,7 +36,6 @@ const UserSchema = new Schema(
         },
         password: {
             type: String,
-            select: false,
             required: [true, 'Password is required'],
             validate(value: string) {
                 if (!validator.isLength(value, { min: 6, max: 1000 })) {
@@ -88,21 +87,22 @@ UserSchema.methods.toJSON = function () {
 };
 
 UserSchema.pre('save', async function (next) {
-    const user = this as User;
-    if (!user.isModified('password')) {
-        next();
+    if (this.isModified('password')) {
+        try {
+            const hashPassword = await bcrypt.hash(this.password, 12);
+            this.password = hashPassword;
+            next();
+        } catch (err) {
+            next(new Error('Could not create user, please try again.'));
+        }
     }
-    const salt = await bcrypt.genSalt();
-    const hash = await bcrypt.hash(user.password, salt);
-    user.password = hash;
-    return next();
+    next();
 });
 
 UserSchema.methods.comparePassword = async function (
-    candidatePassword: string
+    password: string
 ): Promise<boolean> {
-    const user = this as User;
-    return bcrypt.compare(candidatePassword, user.password).catch((e) => false);
+    return await bcrypt.compare(password, this.password);
 };
 
 export default model<User>('User', UserSchema);

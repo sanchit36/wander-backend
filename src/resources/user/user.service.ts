@@ -11,13 +11,23 @@ import {
 class UserService {
     private User = UserModel;
 
+    public async findUserById(id: string): Promise<User> {
+        try {
+            const user = await this.User.findById(id);
+            if (!user) {
+                throw new HTTP404Error('Could not find user.');
+            }
+            return user;
+        } catch (error) {
+            throw new HTTP404Error('Could not find user.');
+        }
+    }
+
     public async findUserByEmail(email: string): Promise<User> {
         try {
             const user = await this.User.findOne({ email });
             if (!user) {
-                throw new HTTP404Error(
-                    'Could not find user with this email address.'
-                );
+                throw new HTTP404Error('Could not find user.');
             }
             return user;
         } catch (error) {
@@ -48,7 +58,9 @@ class UserService {
                 throw new HTTP403Error('User is not verified');
             }
 
-            const isValid = user.comparePassword(loginInput.password);
+            const isValid = await user.comparePassword(loginInput.password);
+
+            console.log(isValid);
 
             if (!isValid) {
                 throw new HTTP403Error('Invalid email or password');

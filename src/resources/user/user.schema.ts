@@ -31,10 +31,38 @@ export const loginUserSchema = object({
     }),
 });
 
-export const verifyUserSchema = object({
+const params = {
     params: object({
+        userId: string({
+            required_error: 'UserId is required',
+        }),
         token: string({
             required_error: 'Token is required',
+        }),
+    }),
+};
+
+const password = {
+    body: object({
+        password: string({
+            required_error: 'Password is required',
+        }),
+    }),
+};
+
+export const verifyUserSchema = object({
+    ...params,
+});
+
+export const resetPassword = object({
+    ...params,
+    ...password,
+});
+
+export const emailBody = object({
+    body: object({
+        email: string({
+            required_error: 'Email is required',
         }),
     }),
 });
@@ -47,3 +75,7 @@ export type CreateUserInput = Omit<
 export type LoginUserInput = TypeOf<typeof loginUserSchema>;
 
 export type VerifyUserInput = TypeOf<typeof verifyUserSchema>;
+
+export type EmailBody = TypeOf<typeof emailBody>;
+
+export type ResetPasswordInput = TypeOf<typeof resetPassword>;

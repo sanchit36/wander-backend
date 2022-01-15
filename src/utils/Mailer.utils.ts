@@ -36,10 +36,8 @@ class Mailer {
         };
 
         try {
-            const info = await this.transporter.sendMail(mailOptions);
-            console.log(info);
+            await this.transporter.sendMail(mailOptions);
         } catch (error) {
-            console.log(error);
             throw new Error('Unable to send email, try again later!');
         }
     }

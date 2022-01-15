@@ -47,7 +47,7 @@ class UserController implements Controller {
             `${this.path}/verification-email`,
             this.getVerificationToken
         );
-        this.router.get(
+        this.router.patch(
             `${this.path}/verify-email/:token`,
             validate(verifyUserSchema),
             this.verifyUserEmail
@@ -181,10 +181,12 @@ class UserController implements Controller {
         const responseHandler = new ResponseHandler(req, res);
         try {
             const token: string | undefined = req.cookies.jid;
-            const { accessToken, refreshToken } =
+            const { user, accessToken, refreshToken } =
                 await this.UserService.refreshToken(token);
             setRefreshTokenCookie(res, refreshToken);
-            responseHandler.onFetch('access Token', { accessToken }).send();
+            responseHandler
+                .onFetch('access Token', { user, accessToken })
+                .send();
         } catch (error) {
             next(responseHandler.sendError(error));
         }

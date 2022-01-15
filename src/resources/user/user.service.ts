@@ -61,6 +61,7 @@ class UserService {
     }
 
     public async refreshToken(refreshToken?: string): Promise<{
+        user: User | null;
         accessToken: string;
         refreshToken: string;
     }> {
@@ -88,11 +89,13 @@ class UserService {
             const newRefreshToken = await generateRefreshToken(user);
 
             return {
+                user,
                 accessToken,
                 refreshToken: newRefreshToken,
             };
         } catch (error) {
             return {
+                user: null,
                 accessToken: '',
                 refreshToken: '',
             };

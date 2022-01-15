@@ -39,7 +39,9 @@ class App {
 
     private initializeMiddleware(): void {
         this.app.use(helmet());
-        this.app.use(cors());
+        this.app.use(
+            cors({ origin: 'http://localhost:3000', credentials: true })
+        );
         this.app.use(morgan('dev'));
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));

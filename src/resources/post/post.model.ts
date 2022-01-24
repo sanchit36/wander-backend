@@ -3,14 +3,14 @@ import Post from '@/resources/post/post.interface';
 
 const PostSchema = new Schema(
     {
-        title: {
-            type: String,
-            required: true,
+        description: { type: String, required: true },
+        image: { type: String },
+        address: { type: String },
+        location: {
+            lat: { type: Number },
+            lng: { type: Number },
         },
-        body: {
-            type: String,
-            required: true,
-        },
+        creator: { type: Schema.Types.ObjectId, required: true, ref: 'User' },
     },
     { timestamps: true }
 );

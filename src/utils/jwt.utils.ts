@@ -1,13 +1,8 @@
 import jwt from 'jsonwebtoken';
-
-interface PayloadJwt {
-    userId: string;
-    email: string;
-    tokenVersion?: number;
-}
+import PayloadJwt from './interfaces/payload.interface';
 
 export const signJwt = async (
-    payload: any,
+    payload: PayloadJwt,
     secretKey: jwt.Secret,
     options?: jwt.SignOptions
 ) => {

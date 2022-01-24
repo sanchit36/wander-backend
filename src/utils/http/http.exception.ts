@@ -76,3 +76,14 @@ export class HTTP409Error extends HttpException {
         super(message, description, errors);
     }
 }
+
+export class HTTP422Error extends HttpException {
+    readonly statusCode = 422;
+    constructor(
+        message: string | object = 'Unprocessable Entity',
+        description?: string,
+        errors?: object
+    ) {
+        super(message, description, errors);
+    }
+}

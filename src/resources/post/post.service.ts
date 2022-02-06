@@ -3,14 +3,13 @@ import Post from '@/resources/post/post.interface';
 import getCoordinatesFromAddress from '@/utils/helpers/location';
 import { HTTP403Error, HTTP404Error } from '@/utils/http/http.exception';
 
-const updatesAllowed = ['description', 'address', 'image'];
-
 class PostService {
     private post = PostModel;
 
     public async fetchById(pid: string): Promise<Post> {
         try {
-            const post = await this.post.findById(pid);
+            const post = await this.post.findById(pid).populate('creator');
+
             if (!post) {
                 throw new Error();
             }
@@ -22,7 +21,7 @@ class PostService {
 
     public async fetchAll(): Promise<Post[]> {
         try {
-            const posts = await this.post.find();
+            const posts = await this.post.find().populate('creator');
             return posts;
         } catch (error) {
             throw new HTTP404Error('Unable to find posts');

@@ -11,7 +11,7 @@ import {
     getPostSchema,
     UpdatePostInput,
     updatePostSchema,
-} from './post.shema';
+} from './post.schema';
 import validate from '@/middleware/validateResource.middleware';
 import PayloadJwt from '@/utils/interfaces/payload.interface';
 import { fileUpload, uploadToCloud } from '@/middleware/file-upload.middleware';
@@ -26,13 +26,17 @@ class PostController implements Controller {
     }
 
     private initializeRoutes(): void {
-        this.router.get(`${this.path}`, validate(getPostSchema), this.getPosts);
-        this.router.get(`${this.path}/:pid`, this.getPost);
+        this.router.get(`${this.path}`, this.getPosts);
+        this.router.get(
+            `${this.path}/:pid`,
+            validate(getPostSchema),
+            this.getPost
+        );
 
         this.router.post(
             `${this.path}`,
             requireUser,
-            fileUpload.single('image'),
+            fileUpload.fields([{ name: 'image', maxCount: 1 }]),
             validate(createPostSchema),
             uploadToCloud,
             this.createPost
@@ -49,7 +53,7 @@ class PostController implements Controller {
         this.router.patch(
             `${this.path}/:pid/image`,
             requireUser,
-            fileUpload.single('image'),
+            fileUpload.fields([{ name: 'image', maxCount: 1 }]),
             uploadToCloud,
             this.updatePostImage
         );
@@ -100,7 +104,7 @@ class PostController implements Controller {
         try {
             const { description, address } = req.body;
             const userId = (res.locals.user as PayloadJwt).userId;
-            const image = res.locals.image;
+            const image = req.body['image'];
             const post = await this.postService.create(
                 userId,
                 description,
@@ -144,7 +148,7 @@ class PostController implements Controller {
         const responseHandler = new ResponseHandler(req, res);
         try {
             const userId = (res.locals.user as PayloadJwt).userId;
-            const image = res.locals.image;
+            const image = req.body['image'];
             const post = await this.postService.updateImage(pid, userId, image);
             responseHandler.onFetch('Post updated successfully', post).send();
         } catch (error) {

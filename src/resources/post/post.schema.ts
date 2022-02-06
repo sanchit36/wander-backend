@@ -14,6 +14,7 @@ export const createPostSchema = object({
             required_error: 'description is required',
         }),
         address: string().optional(),
+        image: string().optional(),
     }),
 });
 

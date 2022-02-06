@@ -1,3 +1,4 @@
+import { update } from 'lodash';
 import { object, string, TypeOf } from 'zod';
 
 export const createUserSchema = object({
@@ -14,10 +15,22 @@ export const createUserSchema = object({
         email: string({
             required_error: 'email is required',
         }).email('Not a valid email address'),
-    }).refine((data) => data.password === data.passwordConfirmation, {
-        message: 'Passwords do not match',
-        path: ['passwordConfirmation'],
-    }),
+    })
+        .strict()
+        .refine((data) => data.password === data.passwordConfirmation, {
+            message: 'Passwords do not match',
+            path: ['passwordConfirmation'],
+        }),
+});
+
+export const updateUserSchema = object({
+    body: object({
+        bio: string().optional(),
+        avatar: string().optional(),
+        coverPicture: string().optional(),
+        dateOfBirth: string().optional(),
+        gender: string().optional(),
+    }).strict(),
 });
 
 export const loginUserSchema = object({
@@ -71,6 +84,8 @@ export type CreateUserInput = Omit<
     TypeOf<typeof createUserSchema>,
     'body.passwordConfirmation'
 >;
+
+export type UpdateUserInput = TypeOf<typeof updateUserSchema>;
 
 export type LoginUserInput = TypeOf<typeof loginUserSchema>;
 

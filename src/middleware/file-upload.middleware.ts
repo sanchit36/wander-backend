@@ -27,11 +27,11 @@ const fileUpload = multer({
     },
 });
 
-const dataUri = (req: Request) => {
-    if (req.file) {
+const dataUri = (file: Express.Multer.File) => {
+    if (file) {
         return parser.format(
-            path.extname(req.file.originalname).toString(),
-            req.file.buffer
+            path.extname(file.originalname).toString(),
+            file.buffer
         );
     }
     throw new Error('Invalid file');
@@ -47,27 +47,35 @@ const getPublicIdForUrl = (url: string) => {
     }
 };
 
-const uploadToCloud = (req: Request, res: Response, next: NextFunction) => {
-    console.log(req.file);
-    console.log(req.files);
-    if (req.file) {
-        const file = dataUri(req).content;
-        if (file) {
-            uploader
-                .upload(file)
-                .then((result) => {
-                    const image = result.url;
-                    res.locals.image = image;
-                    return next();
-                })
-                .catch((err) => {
-                    return next(
-                        new Error('Could not upload image, try again.')
-                    );
-                });
+const helper = async (file: string) => {
+    try {
+        const result = await uploader.upload(file);
+        const image = result.url;
+        return image;
+    } catch (err) {
+        new Error('Could not upload image, try again.');
+    }
+};
+
+const uploadToCloud = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+) => {
+    if (req.files) {
+        const images = [];
+        for (const [key, value] of Object.entries(req.files)) {
+            const file = dataUri(value[0]).content;
+            if (file) {
+                const imageUrl = await helper(file);
+                images.push(imageUrl);
+                req.body[key] = imageUrl;
+            }
         }
+
+        return next();
     } else {
-        next();
+        return next();
     }
 };
 

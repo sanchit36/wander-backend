@@ -1,15 +1,36 @@
 import UserModel from '@/resources/user/user.model';
 import User from '@/resources/user/user.interface';
-import { CreateUserInput, LoginUserInput } from './user.schema';
-import { HTTP403Error, HTTP404Error } from '@/utils/http/http.exception';
+import {
+    CreateUserInput,
+    LoginUserInput,
+    UpdateUserInput,
+} from './user.schema';
+import {
+    HTTP400Error,
+    HTTP403Error,
+    HTTP404Error,
+} from '@/utils/http/http.exception';
 import { verifyJwt } from '@/utils/jwt.utils';
 import {
     generateAccessToken,
     generateRefreshToken,
 } from '@/utils/secureTokens.utils';
+import { startSession } from 'mongoose';
 
 class UserService {
     private User = UserModel;
+
+    public async findUserByUsername(username: string): Promise<User> {
+        try {
+            const user = await this.User.findOne({ username: username });
+            if (!user) {
+                throw new HTTP404Error('Could not find user.');
+            }
+            return user;
+        } catch (error) {
+            throw new HTTP404Error('Could not find user.');
+        }
+    }
 
     public async findUserById(id: string): Promise<User> {
         try {
@@ -39,6 +60,80 @@ class UserService {
         try {
             const user = await this.User.create(userInput);
             return user;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    public async update(
+        userId: string,
+        userInput: UpdateUserInput['body']
+    ): Promise<User> {
+        try {
+            const user = await this.User.findByIdAndUpdate(
+                userId,
+                { $set: userInput },
+                { new: true }
+            );
+            if (!user) {
+                throw new HTTP404Error('Could not find user.');
+            }
+            return user;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    public async delete(userId: string) {
+        try {
+            const user = await this.User.findByIdAndDelete(userId, {
+                new: true,
+            });
+            if (!user) {
+                throw new HTTP404Error('Could not find user.');
+            }
+            return user;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    public async follow(userId: string, currentUserId: string) {
+        try {
+            if (userId === currentUserId) {
+                throw new HTTP400Error('You can not follow yourself');
+            }
+            const user = await this.findUserById(userId);
+            const currentUser = await this.findUserById(currentUserId);
+
+            if (!user.followers?.includes(currentUserId)) {
+                await user.updateOne({ $push: { followers: currentUserId } });
+                await currentUser.updateOne({ $push: { following: userId } });
+                return;
+            } else {
+                throw new HTTP400Error('You already follow this user');
+            }
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    public async unFollow(userId: string, currentUserId: string) {
+        try {
+            if (userId === currentUserId) {
+                throw new HTTP400Error('You can not unFollow yourself');
+            }
+
+            const user = await this.findUserById(userId);
+            const currentUser = await this.findUserById(currentUserId);
+
+            if (user.followers?.includes(currentUserId)) {
+                await user.updateOne({ $pull: { followers: currentUserId } });
+                await currentUser.updateOne({ $pull: { following: userId } });
+                return;
+            } else {
+                throw new HTTP400Error("You don't follow this user");
+            }
         } catch (error) {
             throw error;
         }

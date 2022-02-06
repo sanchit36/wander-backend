@@ -10,13 +10,14 @@ const UserSchema = new Schema(
             type: String,
             unique: true,
             required: [true, 'Username is required'],
-            min: 3,
+            min: [3, 'Username must be at least 3 characters'],
+            max: [25, 'Username can not exceed 25 characters'],
         },
         email: {
             type: String,
             unique: true,
             required: [true, 'Email is required'],
-            min: 3,
+            max: [50, 'Email can not exceed 50 characters'],
             lowercase: true,
             trim: true,
             validate(value: string) {
@@ -30,10 +31,8 @@ const UserSchema = new Schema(
             default:
                 'https://www.pngitem.com/pimgs/m/150-1503945_transparent-user-png-default-user-image-png-png.png',
         },
-        bio: {
-            type: String,
-            default: '',
-        },
+        coverPicture: { type: String, default: '' },
+        bio: { type: String, default: '' },
         password: {
             type: String,
             required: [true, 'Password is required'],

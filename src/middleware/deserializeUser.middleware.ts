@@ -16,10 +16,14 @@ const deserializeUser = async (
         return next();
     }
 
-    const { decoded } = await verifyJwt(
+    const { decoded, expired } = await verifyJwt(
         accessToken,
         process.env.ACCESS_TOKEN_SECRET!
     );
+
+    if (expired) {
+        return next();
+    }
 
     if (decoded) {
         res.locals.user = decoded;

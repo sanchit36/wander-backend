@@ -4,7 +4,7 @@ import ResponseHandler from '@/utils/http/http.response';
 import { ZodError } from 'zod';
 
 function errorMiddleware(
-    error: Error,
+    error: any,
     req: Request,
     res: Response,
     _next: NextFunction
@@ -39,6 +39,7 @@ function errorMiddleware(
             )
             .send();
     }
+
     return responseHandler.onServerError(error.name, error.message).send();
 }
 

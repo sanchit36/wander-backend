@@ -13,6 +13,8 @@ import {
     loginUserSchema,
     resetPassword,
     ResetPasswordInput,
+    UpdateUserInput,
+    updateUserSchema,
     VerifyUserInput,
     verifyUserSchema,
 } from '@/resources/user/user.schema';
@@ -26,6 +28,8 @@ import {
 } from '@/utils/secureTokens.utils';
 import TokenService from '@/resources/token/token.service';
 import requireUser from '@/middleware/requireUser.middleware';
+import { fileUpload, uploadToCloud } from '@/middleware/file-upload.middleware';
+import PayloadJwt from '@/utils/interfaces/payload.interface';
 
 class UserController implements Controller {
     public path = '/users';
@@ -38,40 +42,82 @@ class UserController implements Controller {
     }
 
     private initializeRoutes(): void {
+        // SignUp User
         this.router.post(
             `${this.path}/signup`,
             validate(createUserSchema),
             this.createUser
         );
+        // Login A User
         this.router.post(
             `${this.path}/login`,
             validate(loginUserSchema),
             this.loginUser
         );
+        // Logout A User
         this.router.post(`${this.path}/logout`, requireUser, this.logoutUser);
+        // Verify User Email - GET TOKEN
         this.router.post(
             `${this.path}/verify-email`,
             validate(emailBody),
             this.getVerificationEmail
         );
+        // Verify User Email - validate Token
         this.router.patch(
             `${this.path}/verify-email/:userId/:token`,
             validate(verifyUserSchema),
             this.verifyUserEmail
         );
+        // Reset Password - GET TOKEN
         this.router.post(
             `${this.path}/reset-password`,
             validate(emailBody),
             this.resetPasswordEmail
         );
+        // Reset Password - VALIDATE TOKEN
         this.router.patch(
             `${this.path}/reset-password/:userId/:token`,
             validate(resetPassword),
             this.resetPassword
         );
+        // REFRESH TOKEN
         this.router.get(`${this.path}/refresh-token`, this.refreshToken);
+
+        // UPDATE USER ROUTE
+        this.router.put(
+            `${this.path}/me`,
+            requireUser,
+            fileUpload.fields([
+                { name: 'avatar', maxCount: 1 },
+                { name: 'coverPicture', maxCount: 1 },
+            ]),
+            validate(updateUserSchema),
+            uploadToCloud,
+            this.update
+        );
+
+        // DELETE USER ROUTE`
+        this.router.delete(`${this.path}/me`, requireUser, this.delete);
+
+        // GET USER ROUTE
+        this.router.get(`${this.path}/:username`, this.get);
+
+        // FOLLOW A USER ROUTE
+        this.router.patch(
+            `${this.path}/:userId/follow`,
+            requireUser,
+            this.follow
+        );
+
+        // UNFOLLOW A USER ROUTE
+        this.router.patch(
+            `${this.path}/:userId/unfollow`,
+            requireUser,
+            this.unFollow
+        );
     }
 
+    // CREATE USER - SIGN UP
     private createUser = async (
         req: Request<{}, {}, CreateUserInput['body']>,
         res: Response,
@@ -96,6 +142,7 @@ class UserController implements Controller {
         }
     };
 
+    // LOGIN A User
     private loginUser = async (
         req: Request<{}, {}, LoginUserInput['body']>,
         res: Response,
@@ -120,6 +167,7 @@ class UserController implements Controller {
         }
     };
 
+    // LOGOUT
     private logoutUser = async (
         req: Request,
         res: Response,
@@ -129,6 +177,7 @@ class UserController implements Controller {
         res.send('logged out successfully');
     };
 
+    // SEND EMAIL FOR EMAIL VERIFICATION
     private getVerificationEmail = async (
         req: Request<{}, {}, EmailBody['body']>,
         res: Response,
@@ -160,6 +209,7 @@ class UserController implements Controller {
         }
     };
 
+    // VERIFY THE USER EMAIL
     private verifyUserEmail = async (
         req: Request<VerifyUserInput['params']>,
         res: Response,
@@ -182,6 +232,7 @@ class UserController implements Controller {
         }
     };
 
+    // SEND RESET PASSWORD EMAIL
     private resetPasswordEmail = async (
         req: Request<{}, {}, EmailBody['body']>,
         res: Response,
@@ -210,6 +261,7 @@ class UserController implements Controller {
         }
     };
 
+    // RESET PASSWORD VERIFICATION
     private resetPassword = async (
         req: Request<
             ResetPasswordInput['params'],
@@ -237,6 +289,7 @@ class UserController implements Controller {
         }
     };
 
+    // REFRESH TOKEN
     private refreshToken = async (
         req: Request,
         res: Response,
@@ -250,6 +303,87 @@ class UserController implements Controller {
             setRefreshTokenCookie(res, refreshToken);
             responseHandler
                 .onFetch('access Token', { user, accessToken })
+                .send();
+        } catch (error) {
+            next(responseHandler.sendError(error));
+        }
+    };
+
+    // UPDATE USER
+    private update = async (
+        req: Request<{}, {}, UpdateUserInput['body']>,
+        res: Response,
+        next: NextFunction
+    ) => {
+        console.log(req.body);
+        const responseHandler = new ResponseHandler(req, res);
+        try {
+            const userId = (res.locals.user as PayloadJwt).userId;
+            const user = await this.userService.update(userId, req.body);
+            responseHandler.onFetch('user updated successfully', user).send();
+        } catch (error) {
+            next(responseHandler.sendError(error));
+        }
+    };
+
+    // DELETE USER
+    private delete = async (
+        req: Request,
+        res: Response,
+        next: NextFunction
+    ) => {
+        const responseHandler = new ResponseHandler(req, res);
+        try {
+            const userId = (res.locals.user as PayloadJwt).userId;
+            const user = await this.userService.delete(userId);
+            responseHandler.onFetch('user deleted successfully', user).send();
+        } catch (error) {
+            next(responseHandler.sendError(error));
+        }
+    };
+
+    // GET A USER
+    private get = async (req: Request, res: Response, next: NextFunction) => {
+        const responseHandler = new ResponseHandler(req, res);
+        try {
+            const username = req.params.username;
+            const user = await this.userService.findUserByUsername(username);
+            responseHandler.onFetch('user found successfully', user).send();
+        } catch (error) {
+            next(responseHandler.sendError(error));
+        }
+    };
+
+    // FOLLOW A USER
+    private follow = async (
+        req: Request,
+        res: Response,
+        next: NextFunction
+    ) => {
+        const responseHandler = new ResponseHandler(req, res);
+        try {
+            const userId = (res.locals.user as PayloadJwt).userId;
+            await this.userService.follow(req.params.userId, userId);
+            responseHandler
+                .onFetch('user has been followed successfully')
+                .send();
+        } catch (error) {
+            next(responseHandler.sendError(error));
+        }
+    };
+
+    // unFollow A USER
+    private unFollow = async (
+        req: Request,
+        res: Response,
+        next: NextFunction
+    ) => {
+        const responseHandler = new ResponseHandler(req, res);
+        try {
+            const userId = (res.locals.user as PayloadJwt).userId;
+            await this.userService.unFollow(req.params.userId, userId);
+            responseHandler
+                .onFetch('user has been unFollowed successfully')
                 .send();
         } catch (error) {
             next(responseHandler.sendError(error));

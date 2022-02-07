@@ -5,8 +5,6 @@ import PostService from '@/resources/post/post.service';
 import ResponseHandler from '@/utils/http/http.response';
 import requireUser from '@/middleware/requireUser.middleware';
 import {
-    CommentInput,
-    commentSchema,
     CreatePostInput,
     createPostSchema,
     GetPostInput,
@@ -73,7 +71,7 @@ class PostController implements Controller {
             `${this.path}/:pid/like`,
             requireUser,
             validate(likeSchema),
-            this.likeHandler
+            this.likePost
         );
 
         // UNLIKE A POST
@@ -81,37 +79,11 @@ class PostController implements Controller {
             `${this.path}/:pid/unlike`,
             requireUser,
             validate(likeSchema),
-            this.unlikeHandler
+            this.unlikePost
         );
-
-        // POST A COMMENT
-        this.router.post(
-            `${this.path}/:pid/comment`,
-            requireUser,
-            validate(commentSchema),
-            this.createComment
-        );
-
-        // DELETE A COMMENT
-        this.router.delete(
-            `${this.path}/:pid/:cid`,
-            requireUser,
-            this.deleteComment
-        );
-
-        // LIKE A COMMENT
-
-        // UNLIKE A COMMENT
-
-        // POST A REPLAY
-
-        // DELETE A REPLAY
-
-        // LIKE A COMMENT
-
-        // UNLIKE A COMMENT
     }
 
+    // TODO: ADD FILTERS
     private getPosts = async (
         req: Request,
         res: Response,
@@ -126,6 +98,7 @@ class PostController implements Controller {
         }
     };
 
+    // GET A POST BY ID
     private getPost = async (
         req: Request<GetPostInput['params']>,
         res: Response,
@@ -141,6 +114,7 @@ class PostController implements Controller {
         }
     };
 
+    // CREATE A NEW POST
     private createPost = async (
         req: Request<{}, {}, CreatePostInput['body']>,
         res: Response,
@@ -148,21 +122,15 @@ class PostController implements Controller {
     ) => {
         const responseHandler = new ResponseHandler(req, res);
         try {
-            const { description, address } = req.body;
             const userId = (res.locals.user as PayloadJwt).userId;
-            const image = req.body['image'];
-            const post = await this.postService.create(
-                userId,
-                description,
-                image,
-                address
-            );
+            const post = await this.postService.create(userId, req.body);
             responseHandler.onCreate('Post created successfully', post).send();
         } catch (error) {
             next(responseHandler.sendError(error));
         }
     };
 
+    // UPDATE A POST
     private updatePost = async (
         req: Request<UpdatePostInput['params'], {}, UpdatePostInput['body']>,
         res: Response,
@@ -179,6 +147,7 @@ class PostController implements Controller {
         }
     };
 
+    // DELETE A POST
     private deletePost = async (
         req: Request<GetPostInput['params']>,
         res: Response,
@@ -195,8 +164,9 @@ class PostController implements Controller {
         }
     };
 
-    private likeHandler = async (
-        req: Request<LikeInput['params'], {}, LikeInput['body']>,
+    // LIKE A POST
+    private likePost = async (
+        req: Request<LikeInput['params']>,
         res: Response,
         next: NextFunction
     ) => {
@@ -205,15 +175,16 @@ class PostController implements Controller {
         const pid = req.params.pid;
         try {
             const userId = (res.locals.user as PayloadJwt).userId;
-            await this.postService.like(pid, userId, req.body);
+            await this.postService.like(pid, userId);
             responseHandler.onFetch('Post liked successfully').send();
         } catch (error) {
             next(responseHandler.sendError(error));
         }
     };
 
-    private unlikeHandler = async (
-        req: Request<LikeInput['params'], {}, LikeInput['body']>,
+    // UNLIKE A POST
+    private unlikePost = async (
+        req: Request<LikeInput['params']>,
         res: Response,
         next: NextFunction
     ) => {
@@ -221,53 +192,8 @@ class PostController implements Controller {
         const pid = req.params.pid;
         try {
             const userId = (res.locals.user as PayloadJwt).userId;
-            const post = await this.postService.unlike(pid, userId, req.body);
-            responseHandler.onFetch('Post unliked successfully', post).send();
-        } catch (error) {
-            next(responseHandler.sendError(error));
-        }
-    };
-
-    private createComment = async (
-        req: Request<CommentInput['params'], {}, CommentInput['body']>,
-        res: Response,
-        next: NextFunction
-    ) => {
-        const responseHandler = new ResponseHandler(req, res);
-        const pid = req.params.pid;
-        try {
-            const userId = (res.locals.user as PayloadJwt).userId;
-            const comment = await this.postService.createComment(
-                pid,
-                userId,
-                req.body
-            );
-            responseHandler
-                .onFetch('Post comment successfully', comment)
-                .send();
-        } catch (error) {
-            next(responseHandler.sendError(error));
-        }
-    };
-
-    private deleteComment = async (
-        req: Request,
-        res: Response,
-        next: NextFunction
-    ) => {
-        const responseHandler = new ResponseHandler(req, res);
-        const pid = req.params.pid;
-        const cid = req.params.cid;
-        try {
-            const userId = (res.locals.user as PayloadJwt).userId;
-            const comment = await this.postService.deleteComment(
-                pid,
-                cid,
-                userId
-            );
-            responseHandler
-                .onFetch('Post deleted successfully', comment)
-                .send();
+            const post = await this.postService.unlike(pid, userId);
+            responseHandler.onFetch('Post unlike successfully', post).send();
         } catch (error) {
             next(responseHandler.sendError(error));
         }

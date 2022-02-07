@@ -1,26 +1,5 @@
 import { Schema, model } from 'mongoose';
-import Post, { Comment } from '@/resources/post/post.interface';
-
-const commentSchema = new Schema({
-    user: { type: Schema.Types.ObjectId, ref: 'User' },
-    content: {
-        type: String,
-        max: [255, 'comment can not exceed 255 characters'],
-    },
-    likes: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-    replies: [
-        {
-            user: { type: Schema.Types.ObjectId, ref: 'User' },
-            likes: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-            content: {
-                type: String,
-                max: [255, 'comment can not exceed 255 characters'],
-            },
-        },
-    ],
-});
-
-export const CommentModel = model<Comment>('Comment', commentSchema);
+import Post from '@/resources/post/post.interface';
 
 const postSchema = new Schema(
     {

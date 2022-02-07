@@ -1,16 +1,6 @@
 import { Document } from 'mongoose';
+import { Comment } from '../comment/comment.interface';
 import User from '../user/user.interface';
-
-export interface Comment extends Document {
-    user: User;
-    content: string;
-    likes: string[];
-    replies: {
-        user: User;
-        content: string;
-        likes: string[];
-    }[];
-}
 
 export default interface Post extends Document {
     description: string;

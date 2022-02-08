@@ -107,9 +107,7 @@ class PostService {
         try {
             const post = await this.fetchById(postId);
             if (!post.likes.includes(userId)) {
-                await post.updateOne({
-                    $push: { likes: userId },
-                });
+                await post.updateOne({ $push: { likes: userId } });
             } else {
                 throw new HTTP400Error('you have already liked this post');
             }
@@ -122,9 +120,7 @@ class PostService {
         try {
             const post = await this.fetchById(postId);
             if (post.likes.includes(userId)) {
-                await post.updateOne({
-                    $pull: { likes: userId },
-                });
+                await post.updateOne({ $pull: { likes: userId } });
             } else {
                 throw new HTTP400Error("you don't have liked this post");
             }

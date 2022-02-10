@@ -56,30 +56,35 @@ class UserController implements Controller {
         );
         // Logout A User
         this.router.post(`${this.path}/logout`, requireUser, this.logoutUser);
+
         // Verify User Email - GET TOKEN
         this.router.post(
             `${this.path}/verify-email`,
             validate(emailBody),
             this.getVerificationEmail
         );
+
         // Verify User Email - validate Token
         this.router.patch(
             `${this.path}/verify-email/:userId/:token`,
             validate(verifyUserSchema),
             this.verifyUserEmail
         );
+
         // Reset Password - GET TOKEN
         this.router.post(
             `${this.path}/reset-password`,
             validate(emailBody),
             this.resetPasswordEmail
         );
+
         // Reset Password - VALIDATE TOKEN
         this.router.patch(
             `${this.path}/reset-password/:userId/:token`,
             validate(resetPassword),
             this.resetPassword
         );
+
         // REFRESH TOKEN
         this.router.get(`${this.path}/refresh-token`, this.refreshToken);
 

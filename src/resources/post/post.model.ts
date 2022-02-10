@@ -8,7 +8,7 @@ const postSchema = new Schema(
             required: true,
             max: [500, 'comment can not exceed 500 characters'],
         },
-        image: { type: String },
+        image: { type: String, required: [true, 'please provide a image'] },
         address: { type: String },
         location: {
             lat: { type: Number },
